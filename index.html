@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telos Ecosystem Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .node:hover {
+            filter: brightness(1.2);
+        }
+        
+        .link {
+            stroke-opacity: 0.6;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .energy-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #38bdf8;
+            filter: blur(2px);
+            pointer-events: none;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid #38bdf8;
+            border-radius: 8px;
+            pointer-events: none;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            max-width: 300px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            border-color: rgba(56, 189, 248, 0.8);
+            transform: translateY(-2px);
+        }
+        
+        .glow {
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+        }
+        
+        .tab {
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: rgba(56, 189, 248, 0.2);
+            border-bottom: 2px solid #38bdf8;
+        }
+        
+        .tab:hover:not(.active) {
+            background: rgba(56, 189, 248, 0.1);
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.5);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.8);
+        }
+        
+        .animate-spin-slow {
+            animation: spin 8s linear infinite;
+        }
+        
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .telos-logo {
+            filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.5));
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-center">
+            <div class="flex items-center mb-4 md:mb-0">
+                <div class="mr-4 relative">
+                    <!-- Updated Telos Logo -->
+                    <svg class="w-12 h-12 telos-logo" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M256 0C114.615 0 0 114.615 0 256C0 397.385 114.615 512 256 512C397.385 512 512 397.385 512 256C512 114.615 397.385 0 256 0Z" fill="#571AFF"/>
+                        <path d="M256 31.0154C131.815 31.0154 31.0154 131.815 31.0154 256C31.0154 380.185 131.815 480.985 256 480.985C380.185 480.985 480.985 380.185 480.985 256C480.985 131.815 380.185 31.0154 256 31.0154Z" fill="#190E4F"/>
+                        <path d="M256 62.0308C149.046 62.0308 62.0308 149.046 62.0308 256C62.0308 362.954 149.046 449.969 256 449.969C362.954 449.969 449.969 362.954 449.969 256C449.969 149.046 362.954 62.0308 256 62.0308Z" fill="#140A3C"/>
+                        <path d="M256 93.0462C166.277 93.0462 93.0462 166.277 93.0462 256C93.0462 345.723 166.277 418.954 256 418.954C345.723 418.954 418.954 345.723 418.954 256C418.954 166.277 345.723 93.0462 256 93.0462Z" fill="#0E0828"/>
+                        <path d="M256 124.062C183.508 124.062 124.062 183.508 124.062 256C124.062 328.492 183.508 387.938 256 387.938C328.492 387.938 387.938 328.492 387.938 256C387.938 183.508 328.492 124.062 256 124.062Z" fill="#571AFF"/>
+                        <path d="M256 155.077C200.738 155.077 155.077 200.738 155.077 256C155.077 311.262 200.738 356.923 256 356.923C311.262 356.923 356.923 311.262 356.923 256C356.923 200.738 311.262 155.077 256 155.077Z" fill="#0E0828"/>
+                        <path d="M256 186.092C217.969 186.092 186.092 217.969 186.092 256C186.092 294.031 217.969 325.908 256 325.908C294.031 325.908 325.908 294.031 325.908 256C325.908 217.969 294.031 186.092 256 186.092Z" fill="#571AFF"/>
+                        <path d="M256 217.108C235.2 217.108 217.108 235.2 217.108 256C217.108 276.8 235.2 294.892 256 294.892C276.8 294.892 294.892 276.8 294.892 256C294.892 235.2 276.8 217.108 256 217.108Z" fill="#0E0828"/>
+                        <path d="M256 248.123C252.431 248.123 248.123 252.431 248.123 256C248.123 259.569 252.431 263.877 256 263.877C259.569 263.877 263.877 259.569 263.877 256C263.877 252.431 259.569 248.123 256 248.123Z" fill="#FFFFFF"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-blue-500">Telos Ecosystem Dashboard</h1>
+                    <p class="text-slate-400 text-sm">Real-time network activity visualization</p>
+                </div>
+            </div>
+            <div class="flex space-x-2">
+                <button id="refreshBtn" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded-lg flex items-center transition-all">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Refresh
+                </button>
+                <button id="filterBtn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center transition-all">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                    </svg>
+                    Filter
+                </button>
+            </div>
+        </header>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div class="lg:col-span-3">
+                <div class="card rounded-xl p-4 h-[600px] relative">
+                    <div class="absolute top-4 right-4 flex space-x-2 z-10">
+                        <button id="zoomInBtn" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                        </button>
+                        <button id="zoomOutBtn" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6"></path>
+                            </svg>
+                        </button>
+                        <button id="resetBtn" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="network-graph" class="w-full h-full"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div class="card rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-medium text-sky-400">Active Nodes</h3>
+                            <span class="text-xl font-bold" id="active-nodes">32</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2">
+                            <div class="bg-sky-400 h-2 rounded-full" style="width: 80%"></div>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">+12% from last hour</p>
+                    </div>
+                    
+                    <div class="card rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-medium text-emerald-400">Transactions</h3>
+                            <span class="text-xl font-bold" id="transactions">1,284</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2">
+                            <div class="bg-emerald-400 h-2 rounded-full" style="width: 65%"></div>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">+5% from last hour</p>
+                    </div>
+                    
+                    <div class="card rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-medium text-purple-400">Network Load</h3>
+                            <span class="text-xl font-bold" id="network-load">42%</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2">
+                            <div class="bg-purple-400 h-2 rounded-full" style="width: 42%"></div>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">Stable performance</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="lg:col-span-1">
+                <div class="card rounded-xl p-4 mb-6">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        Activity Feed
+                    </h2>
+                    <div class="space-y-3 max-h-[300px] overflow-y-auto pr-2" id="activity-feed">
+                        <!-- Activity items will be dynamically added here -->
+                    </div>
+                </div>
+                
+                <div class="card rounded-xl p-4">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        Project Details
+                    </h2>
+                    <div id="project-details" class="text-slate-300">
+                        <p class="text-center text-slate-400 py-8">Select a node to view details</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8">
+            <div class="flex border-b border-slate-700">
+                <button class="tab active px-4 py-2 text-sky-400" data-tab="overview">Overview</button>
+                <button class="tab px-4 py-2 text-slate-400" data-tab="statistics">Statistics</button>
+                <button class="tab px-4 py-2 text-slate-400" data-tab="governance">Governance</button>
+            </div>
+            <div class="p-4">
+                <div id="overview" class="tab-content">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-lg font-medium mb-3 text-sky-400">Ecosystem Health</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-sm text-slate-300">Network Stability</span>
+                                        <span class="text-sm text-slate-300">98%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-700 rounded-full h-2">
+                                        <div class="bg-emerald-400 h-2 rounded-full" style="width: 98%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-sm text-slate-300">Node Distribution</span>
+                                        <span class="text-sm text-slate-300">85%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-700 rounded-full h-2">
+                                        <div class="bg-sky-400 h-2 rounded-full" style="width: 85%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-sm text-slate-300">Developer Activity</span>
+                                        <span class="text-sm text-slate-300">76%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-700 rounded-full h-2">
+                                        <div class="bg-purple-400 h-2 rounded-full" style="width: 76%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium mb-3 text-sky-400">Top Projects</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center p-2 bg-slate-800 rounded-lg">
+                                    <div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center mr-3">
+                                        <span class="font-bold">1</span>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium">Telos EVM</h4>
+                                        <p class="text-xs text-slate-400">Ethereum Virtual Machine</p>
+                                    </div>
+                                    <div class="ml-auto">
+                                        <span class="text-emerald-400">+12.4%</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center p-2 bg-slate-800 rounded-lg">
+                                    <div class="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center mr-3">
+                                        <span class="font-bold">2</span>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium">Telos Decide</h4>
+                                        <p class="text-xs text-slate-400">Governance Engine</p>
+                                    </div>
+                                    <div class="ml-auto">
+                                        <span class="text-sky-400">+8.7%</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center p-2 bg-slate-800 rounded-lg">
+                                    <div class="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center mr-3">
+                                        <span class="font-bold">3</span>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium">Telos Swaps</h4>
+                                        <p class="text-xs text-slate-400">Token Swap Protocol</p>
+                                    </div>
+                                    <div class="ml-auto">
+                                        <span class="text-purple-400">+6.2%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="statistics" class="tab-content hidden">
+                    <div class="text-center py-12">
+                        <p class="text-slate-400">Detailed statistics will appear here</p>
+                    </div>
+                </div>
+                <div id="governance" class="tab-content hidden">
+                    <div class="text-center py-12">
+                        <p class="text-slate-400">Governance information will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="mt-8 text-center text-sm text-slate-400 py-4 border-t border-slate-700">
+            <p>Created by Daniel Marcelo of ComplianceBP</p>
+        </footer>
+    </div>
+    
+    <div id="tooltip" class="tooltip hidden"></div>
+    
+    <script>
+        // Sample data for the Telos ecosystem - Updated to remove dStor and Area X
+        const ecosystemData = {
+            nodes: [
+                { id: "telos-core", name: "Telos Core", type: "infrastructure", size: 25, color: "#38bdf8", activity: 0.9, description: "The main blockchain infrastructure of Telos network" },
+                { id: "telos-evm", name: "Telos EVM", type: "platform", size: 20, color: "#10b981", activity: 0.85, description: "Ethereum Virtual Machine implementation on Telos" },
+                { id: "telos-decide", name: "Telos Decide", type: "governance", size: 18, color: "#8b5cf6", activity: 0.7, description: "On-chain governance system for DAOs and organizations" },
+                { id: "telos-escrow", name: "Telos Escrow", type: "service", size: 14, color: "#ef4444", activity: 0.6, description: "Smart contract escrow service for secure transactions" },
+                { id: "telos-amm", name: "Telos AMM", type: "defi", size: 17, color: "#ec4899", activity: 0.75, description: "Automated Market Maker for decentralized trading" },
+                { id: "telos-rex", name: "REX", type: "resource", size: 15, color: "#14b8a6", activity: 0.55, description: "Resource Exchange for CPU and NET resources" },
+                { id: "telos-foundation", name: "Telos Foundation", type: "organization", size: 19, color: "#6366f1", activity: 0.8, description: "Non-profit organization supporting Telos ecosystem" },
+                { id: "telos-kitchen", name: "Telos Kitchen", type: "community", size: 14, color: "#84cc16", activity: 0.6, description: "Community-driven development group" },
+                { id: "vapaee", name: "Vapaee", type: "dapp", size: 12, color: "#a855f7", activity: 0.45, description: "Decentralized exchange and token platform" },
+                { id: "telos-swaps", name: "Telos Swaps", type: "defi", size: 15, color: "#06b6d4", activity: 0.7, description: "Token swap protocol for Telos" },
+                { id: "telos-oracle", name: "Telos Oracle", type: "service", size: 13, color: "#f43f5e", activity: 0.55, description: "Price feed and data oracle service" },
+                { id: "telos-wps", name: "Telos WPS", type: "governance", size: 14, color: "#8b5cf6", activity: 0.6, description: "Worker Proposal System for funding projects" },
+                { id: "telos-bridge", name: "Telos Bridge", type: "infrastructure", size: 16, color: "#38bdf8", activity: 0.75, description: "Cross-chain bridge for asset transfers" }
+            ],
+            links: [
+                { source: "telos-core", target: "telos-evm", value: 10, activity: 0.9 },
+                { source: "telos-core", target: "telos-decide", value: 8, activity: 0.8 },
+                { source: "telos-core", target: "telos-escrow", value: 5, activity: 0.6 },
+                { source: "telos-core", target: "telos-amm", value: 9, activity: 0.85 },
+                { source: "telos-core", target: "telos-rex", value: 6, activity: 0.75 },
+                { source: "telos-core", target: "telos-foundation", value: 10, activity: 0.9 },
+                { source: "telos-evm", target: "telos-amm", value: 7, activity: 0.8 },
+                { source: "telos-evm", target: "telos-swaps", value: 8, activity: 0.85 },
+                { source: "telos-decide", target: "telos-foundation", value: 7, activity: 0.75 },
+                { source: "telos-decide", target: "telos-wps", value: 9, activity: 0.9 },
+                { source: "telos-decide", target: "telos-kitchen", value: 5, activity: 0.6 },
+                { source: "telos-amm", target: "telos-swaps", value: 8, activity: 0.8 },
+                { source: "telos-amm", target: "vapaee", value: 5, activity: 0.6 },
+                { source: "telos-amm", target: "telos-oracle", value: 7, activity: 0.75 },
+                { source: "telos-foundation", target: "telos-kitchen", value: 6, activity: 0.7 },
+                { source: "telos-foundation", target: "telos-wps", value: 8, activity: 0.85 },
+                { source: "telos-bridge", target: "telos-core", value: 9, activity: 0.85 },
+                { source: "telos-bridge", target: "telos-evm", value: 8, activity: 0.8 },
+                { source: "telos-oracle", target: "telos-swaps", value: 7, activity: 0.75 },
+                { source: "telos-rex", target: "telos-escrow", value: 5, activity: 0.6 }
+            ]
+        };
+
+        // Activity feed data - Updated to remove references to dStor and Area X
+        const activityData = [
+            { time: "Just now", project: "Telos EVM", action: "Smart contract deployed", icon: "🚀" },
+            { time: "2 min ago", project: "Telos Bridge", action: "Cross-chain transfer", icon: "🌉" },
+            { time: "5 min ago", project: "Telos Swaps", action: "Liquidity pool updated", icon: "💧" },
+            { time: "12 min ago", project: "Telos Decide", action: "New proposal created", icon: "📝" },
+            { time: "18 min ago", project: "Telos Foundation", action: "Grant approved", icon: "💰" },
+            { time: "25 min ago", project: "Telos AMM", action: "Liquidity added", icon: "💧" },
+            { time: "32 min ago", project: "Telos Oracle", action: "Price feed updated", icon: "📊" },
+            { time: "45 min ago", project: "Telos Kitchen", action: "New member joined", icon: "👤" },
+            { time: "1 hour ago", project: "Telos WPS", action: "Proposal funded", icon: "💰" }
+        ];
+
+        // Initialize the network graph
+        function initNetworkGraph() {
+            const width = document.getElementById('network-graph').clientWidth;
+            const height = document.getElementById('network-graph').clientHeight;
+            
+            // Clear previous SVG if exists
+            d3.select("#network-graph svg").remove();
+            
+            const svg = d3.select("#network-graph")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .call(d3.zoom().on("zoom", (event) => {
+                    g.attr("transform", event.transform);
+                }));
+            
+            const g = svg.append("g");
+            
+            // Create a force simulation
+            const simulation = d3.forceSimulation(ecosystemData.nodes)
+                .force("link", d3.forceLink(ecosystemData.links).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-300))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(d => d.size * 1.5));
+            
+            // Create links
+            const link = g.append("g")
+                .selectAll("line")
+                .data(ecosystemData.links)
+                .enter()
+                .append("line")
+                .attr("class", "link")
+                .attr("stroke", d => {
+                    const sourceNode = ecosystemData.nodes.find(n => n.id === d.source.id || n.id === d.source);
+                    return sourceNode ? sourceNode.color : "#38bdf8";
+                })
+                .attr("stroke-width", d => Math.max(1, d.value / 3))
+                .attr("opacity", d => 0.2 + d.activity * 0.5);
+            
+            // Create nodes
+            const node = g.append("g")
+                .selectAll(".node")
+                .data(ecosystemData.nodes)
+                .enter()
+                .append("g")
+                .attr("class", "node")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+            
+            // Add circles to nodes
+            node.append("circle")
+                .attr("r", d => d.size)
+                .attr("fill", d => d.color)
+                .attr("stroke", "#0f172a")
+                .attr("stroke-width", 2)
+                .attr("class", d => d.activity > 0.8 ? "pulse" : "");
+            
+            // Add labels to nodes
+            node.append("text")
+                .attr("dy", d => d.size + 10)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#f8fafc")
+                .attr("font-size", "10px")
+                .text(d => d.name);
+            
+            // Add tooltip behavior
+            node.on("mouseover", function(event, d) {
+                const tooltip = d3.select("#tooltip");
+                tooltip.html(`
+                    <div class="font-bold text-sky-400">${d.name}</div>
+                    <div class="text-xs text-slate-300 mb-1">Type: ${d.type.charAt(0).toUpperCase() + d.type.slice(1)}</div>
+                    <div class="text-xs">${d.description}</div>
+                    <div class="mt-2 text-xs">Activity: 
+                        <span class="font-bold ${d.activity > 0.7 ? 'text-emerald-400' : d.activity > 0.4 ? 'text-yellow-400' : 'text-red-400'}">
+                            ${Math.round(d.activity * 100)}%
+                        </span>
+                    </div>
+                `)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 10) + "px")
+                .classed("hidden", false);
+                
+                // Highlight connected links and nodes
+                link.attr("opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 0.8 : 0.1);
+                node.attr("opacity", n => (n.id === d.id || ecosystemData.links.some(l => 
+                    (l.source.id === d.id && l.target.id === n.id) || 
+                    (l.target.id === d.id && l.source.id === n.id)
+                )) ? 1 : 0.3);
+            })
+            .on("mouseout", function() {
+                d3.select("#tooltip").classed("hidden", true);
+                link.attr("opacity", d => 0.2 + d.activity * 0.5);
+                node.attr("opacity", 1);
+            })
+            .on("click", function(event, d) {
+                showProjectDetails(d);
+                simulateEnergyFlow(d);
+            });
+            
+            // Update positions on each tick
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+                
+                node.attr("transform", d => `translate(${d.x},${d.y})`);
+            });
+            
+            // Drag functions
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+            
+            // Zoom buttons functionality
+            document.getElementById("zoomInBtn").addEventListener("click", () => {
+                const currentTransform = d3.zoomTransform(svg.node());
+                svg.transition().duration(300).call(
+                    d3.zoom().transform,
+                    d3.zoomIdentity.translate(currentTransform.x, currentTransform.y).scale(currentTransform.k * 1.3)
+                );
+            });
+            
+            document.getElementById("zoomOutBtn").addEventListener("click", () => {
+                const currentTransform = d3.zoomTransform(svg.node());
+                svg.transition().duration(300).call(
+                    d3.zoom().transform,
+                    d3.zoomIdentity.translate(currentTransform.x, currentTransform.y).scale(currentTransform.k / 1.3)
+                );
+            });
+            
+            document.getElementById("resetBtn").addEventListener("click", () => {
+                svg.transition().duration(500).call(
+                    d3.zoom().transform,
+                    d3.zoomIdentity
+                );
+            });
+            
+            return { svg, g, simulation, link, node };
+        }
+        
+        // Initialize activity feed
+        function initActivityFeed() {
+            const feedContainer = document.getElementById("activity-feed");
+            feedContainer.innerHTML = "";
+            
+            activityData.forEach(item => {
+                const activityItem = document.createElement("div");
+                activityItem.className = "flex items-start";
+                activityItem.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center mr-3 flex-shrink-0">
+                        <span>${item.icon}</span>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-sm">${item.project}</h4>
+                        <p class="text-xs text-slate-400">${item.action}</p>
+                        <p class="text-xs text-slate-500 mt-1">${item.time}</p>
+                    </div>
+                `;
+                feedContainer.appendChild(activityItem);
+            });
+        }
+        
+        // Show project details
+        function showProjectDetails(project) {
+            const detailsContainer = document.getElementById("project-details");
+            
+            // Find connected projects
+            const connections = ecosystemData.links.filter(link => 
+                link.source.id === project.id || link.target.id === project.id
+            );
+            
+            const connectedProjects = connections.map(conn => {
+                const connectedId = conn.source.id === project.id ? conn.target.id : conn.source.id;
+                return ecosystemData.nodes.find(n => n.id === connectedId);
+            });
+            
+            detailsContainer.innerHTML = `
+                <div class="mb-4 pb-4 border-b border-slate-700">
+                    <div class="flex items-center mb-2">
+                        <div class="w-8 h-8 rounded-full mr-3" style="background-color: ${project.color}"></div>
+                        <h3 class="text-lg font-semibold">${project.name}</h3>
+                    </div>
+                    <p class="text-sm mb-3">${project.description}</p>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-slate-800 p-2 rounded">
+                            <span class="text-slate-400">Type:</span>
+                            <span class="block font-medium">${project.type.charAt(0).toUpperCase() + project.type.slice(1)}</span>
+                        </div>
+                        <div class="bg-slate-800 p-2 rounded">
+                            <span class="text-slate-400">Activity:</span>
+                            <span class="block font-medium ${project.activity > 0.7 ? 'text-emerald-400' : project.activity > 0.4 ? 'text-yellow-400' : 'text-red-400'}">${Math.round(project.activity * 100)}%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <h4 class="font-medium mb-2 text-sm">Connected Projects (${connectedProjects.length})</h4>
+                <div class="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                    ${connectedProjects.map(p => `
+                        <div class="flex items-center p-2 bg-slate-800 rounded text-xs">
+                            <div class="w-3 h-3 rounded-full mr-2" style="background-color: ${p.color}"></div>
+                            <span>${p.name}</span>
+                            <span class="ml-auto text-slate-400">${p.type}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // Simulate energy flow between nodes
+        function simulateEnergyFlow(sourceNode) {
+            const connections = ecosystemData.links.filter(link => 
+                link.source.id === sourceNode.id || link.target.id === sourceNode.id
+            );
+            
+            connections.forEach(conn => {
+                const sourceElement = document.querySelector(`[transform*="translate(${conn.source.x},${conn.source.y})"]`);
+                const targetElement = document.querySelector(`[transform*="translate(${conn.target.x},${conn.target.y})"]`);
+                
+                if (sourceElement && targetElement) {
+                    const sourceRect = sourceElement.getBoundingClientRect();
+                    const targetRect = targetElement.getBoundingClientRect();
+                    
+                    const sourceX = sourceRect.left + sourceRect.width / 2;
+                    const sourceY = sourceRect.top + sourceRect.height / 2;
+                    const targetX = targetRect.left + targetRect.width / 2;
+                    const targetY = targetRect.top + targetRect.height / 2;
+                    
+                    // Create energy particles
+                    for (let i = 0; i < 3; i++) {
+                        setTimeout(() => {
+                            createEnergyParticle(sourceX, sourceY, targetX, targetY, sourceNode.color);
+                        }, i * 200);
+                    }
+                }
+            });
+        }
+        
+        // Create energy particle
+        function createEnergyParticle(startX, startY, endX, endY, color) {
+            const particle = document.createElement("div");
+            particle.className = "energy-particle";
+            particle.style.backgroundColor = color;
+            particle.style.left = startX + "px";
+            particle.style.top = startY + "px";
+            document.body.appendChild(particle);
+            
+            const duration = 1000 + Math.random() * 500;
+            const startTime = performance.now();
+            
+            function animateParticle(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const x = startX + (endX - startX) * progress;
+                const y = startY + (endY - startY) * progress;
+                
+                particle.style.left = x + "px";
+                particle.style.top = y + "px";
+                particle.style.opacity = 1 - Math.abs(progress - 0.5) * 2;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animateParticle);
+                } else {
+                    particle.remove();
+                }
+            }
+            
+            requestAnimationFrame(animateParticle);
+        }
+        
+        // Update stats with random fluctuations
+        function updateStats() {
+            const activeNodes = document.getElementById("active-nodes");
+            const transactions = document.getElementById("transactions");
+            const networkLoad = document.getElementById("network-load");
+            
+            let currentActiveNodes = parseInt(activeNodes.textContent);
+            let currentTransactions = parseInt(transactions.textContent.replace(/,/g, ''));
+            let currentNetworkLoad = parseInt(networkLoad.textContent);
+            
+            // Random fluctuations
+            currentActiveNodes += Math.floor(Math.random() * 3) - 1;
+            currentTransactions += Math.floor(Math.random() * 50) - 10;
+            currentNetworkLoad += Math.floor(Math.random() * 3) - 1;
+            
+            // Keep within reasonable bounds
+            currentActiveNodes = Math.max(25, Math.min(40, currentActiveNodes));
+            currentTransactions = Math.max(1000, currentTransactions);
+            currentNetworkLoad = Math.max(30, Math.min(60, currentNetworkLoad));
+            
+            activeNodes.textContent = currentActiveNodes;
+            transactions.textContent = currentTransactions.toLocaleString();
+            networkLoad.textContent = currentNetworkLoad + "%";
+            
+            // Update progress bar
+            document.querySelector("#active-nodes").parentElement.nextElementSibling.querySelector("div").style.width = (currentActiveNodes / 40 * 100) + "%";
+            document.querySelector("#transactions").parentElement.nextElementSibling.querySelector("div").style.width = (Math.min(currentTransactions / 2000, 1) * 100) + "%";
+            document.querySelector("#network-load").parentElement.nextElementSibling.querySelector("div").style.width = currentNetworkLoad + "%";
+        }
+        
+        // Tab switching functionality
+        function initTabs() {
+            const tabs = document.querySelectorAll(".tab");
+            tabs.forEach(tab => {
+                tab.addEventListener("click", () => {
+                    // Remove active class from all tabs
+                    tabs.forEach(t => {
+                        t.classList.remove("active");
+                        t.classList.remove("text-sky-400");
+                        t.classList.add("text-slate-400");
+                    });
+                    
+                    // Add active class to clicked tab
+                    tab.classList.add("active");
+                    tab.classList.add("text-sky-400");
+                    tab.classList.remove("text-slate-400");
+                    
+                    // Hide all tab content
+                    document.querySelectorAll(".tab-content").forEach(content => {
+                        content.classList.add("hidden");
+                    });
+                    
+                    // Show selected tab content
+                    const tabId = tab.getAttribute("data-tab");
+                    document.getElementById(tabId).classList.remove("hidden");
+                });
+            });
+        }
+        
+        // Add new activity item
+        function addNewActivity() {
+            const actions = [
+                { action: "Smart contract deployed", icon: "🚀" },
+                { action: "Transaction processed", icon: "💸" },
+                { action: "Block produced", icon: "🧱" },
+                { action: "Proposal voted", icon: "🗳️" },
+                { action: "Token transfer", icon: "💱" },
+                { action: "Resource allocated", icon: "📊" }
+            ];
+            
+            const projects = ecosystemData.nodes.map(n => n.name);
+            const randomProject = projects[Math.floor(Math.random() * projects.length)];
+            const randomAction = actions[Math.floor(Math.random() * actions.length)];
+            
+            const newActivity = {
+                time: "Just now",
+                project: randomProject,
+                action: randomAction.action,
+                icon: randomAction.icon
+            };
+            
+            // Update time labels on existing activities
+            activityData.forEach(item => {
+                if (item.time === "Just now") {
+                    item.time = "1 min ago";
+                } else if (item.time === "1 min ago") {
+                    item.time = "2 min ago";
+                } else if (item.time.includes("min ago")) {
+                    const mins = parseInt(item.time);
+                    item.time = (mins + 1) + " min ago";
+                }
+            });
+            
+            // Add new activity at the beginning
+            activityData.unshift(newActivity);
+            
+            // Remove oldest if more than 9
+            if (activityData.length > 9) {
+                activityData.pop();
+            }
+            
+            // Update the feed
+            initActivityFeed();
+        }
+        
+        // Initialize everything
+        let graphElements = initNetworkGraph();
+        initActivityFeed();
+        initTabs();
+        
+        // Refresh button functionality
+        document.getElementById("refreshBtn").addEventListener("click", () => {
+            graphElements = initNetworkGraph();
+            
+            // Add animation class to button
+            const refreshBtn = document.getElementById("refreshBtn");
+            refreshBtn.classList.add("animate-spin");
+            setTimeout(() => {
+                refreshBtn.classList.remove("animate-spin");
+            }, 500);
+        });
+        
+        // Filter button functionality (placeholder)
+        document.getElementById("filterBtn").addEventListener("click", () => {
+            alert("Filter functionality would appear here");
+        });
+        
+        // Periodic updates
+        setInterval(updateStats, 3000);
+        setInterval(addNewActivity, 8000);
+        
+        // Simulate random energy flows
+        setInterval(() => {
+            const randomNodeIndex = Math.floor(Math.random() * ecosystemData.nodes.length);
+            simulateEnergyFlow(ecosystemData.nodes[randomNodeIndex]);
+        }, 5000);
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'964e36fd13f3a66e',t:'MTc1MzQ3MzMyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
